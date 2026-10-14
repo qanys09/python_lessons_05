@@ -1,0 +1,20 @@
+[
+   {
+      "id": 1,
+      "nickname": "Mira",
+      "level": 7,
+      "active": true
+   },
+   {
+      "id": 2,
+      "nickname": "Alex",
+      "level": 13,
+      "active": false
+   },
+   {
+      "id": 3,
+      "nickname": "Данияр",
+      "level": 5,
+      "active": false
+   }
+]
