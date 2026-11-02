@@ -33,7 +33,7 @@ def load_db():
     except (FileNotFoundError, json.JSONDecodeError):
         return {"next_event_id": 1, "events": []}
 
-def save_bd(data):
+def save_db(data):
     with open(FILE_NAME, "w", encoding="utf_8") as file:
         json.dump(data, file, ensure_ascii=False, indent=3)
 
@@ -212,17 +212,19 @@ def book_ticket(data, event_id, participant):
 # 2. Удаляйте имя только из нужного мероприятия.
 # 3. Верните True при успешной отмене и False, если событие или участник не найдены.
 
-def cancel_ticket(data, event_id, participant):
 
-        event = find_event(data,event_id)
-        if event is None:
-                return False
-        
-        if participant not in  event["participant"]:
-                return False
-        
-        else   event["participant"].remove(participant):
-                return True 
+def cancel_ticket(data, event_id, participant):
+    event = find_event(data, event_id)
+
+    if event is None:
+        return False
+
+    if participant not in event["participants"]:
+        return False
+
+    event["participants"].remove(participant)
+    return True
+
         
        
 
@@ -238,3 +240,225 @@ def cancel_ticket(data, event_id, participant):
 # 1. Создайте edit_event(data, event_id, new_title, new_date, new_price).
 # 2. Изменяйте только найденное мероприятие.
 # 3. Верните логический результат, чтобы меню понимало, нужно ли сохранять файл.
+
+def edit_event(data, event_id, new_title, new_date, new_price):
+    event = find_event(data, event_id)   #ищем мероприятие по ID
+    if event is None:  # проверяет найдено ли оно
+        return False
+
+# изменяет название
+    event["title"] = new_title  
+    event["date"] = new_date
+    event["price"] = new_price
+
+    return True
+
+
+
+
+
+
+
+
+11
+def delete_event(data , event_id):
+    event = find_event(data , event_id)   #ищем мероприятие по ID
+
+    if event is None:    # если мероприятие не найдено, возвращает False
+        return False
+    data["event"].remove(event)  # удаляем найденное мероприятие из списка.
+    return True   # означает, что удаление прошло успешно
+
+
+
+12
+
+def sort_by_popularity(data):
+    return sorted(data["events"], key=lambda event: len(event["participants"]), reverse=True)
+
+
+
+
+13
+
+def get_statistics(data):
+    total_bookings = 0   #начальное количество бронирований
+    total_income = 0  # начальный доход
+    popular_event = None  # пока популярное мероприятие не определено
+
+    for event in data["events"]:
+        bookings = len(event["participants"]) #количество участников текущего мероприятия
+        total_bookings += bookings   #добавляем это количество к общему числу бронирований
+        total_income += bookings * event["price"]   # умножаем количество броней на цену билета и прибавляем к общему доходу
+
+        if popular_event is None or bookings > len(popular_event["participants"]):
+            popular_event = event
+
+    popular_title = "Нет мероприятий"
+
+    if popular_event is not None:
+        popular_title = popular_event["title"]
+
+    return {
+        "events": len(data["events"]),
+        "bookings": total_bookings,
+        "income": total_income,
+        "popular": popular_title
+    }
+
+
+
+
+
+
+
+14
+
+def export_report(data):
+    statistics = get_statistics(data)
+
+    with open("eventhub_report.txt", "w", encoding="utf-8") as file: # режим записи
+       # записывает текст в файл
+       
+        file.write("ОТЧЁТ EVENTHUB\n")     
+        file.write(f'Мероприятий: {statistics["events"]}\n')
+        file.write(f'Бронирований: {statistics["bookings"]}\n')
+        file.write(f'Доход: {statistics["income"]} тг\n')
+        file.write(f'Самое популярное: {statistics["popular"]}\n')
+
+
+
+
+15
+
+
+
+
+def read_number(message):
+    try:
+        return int(input(message))
+    except ValueError:
+        print("Введите целое число")
+        return None
+
+
+def main():
+    data = load_db()
+
+    while True:
+        print("\n===== EVENTHUB =====")
+        print("1. Показать мероприятия")
+        print("2. Добавить мероприятие")
+        print("3. Найти по категории")
+        print("4. Отсортировать по дате")
+        print("5. Забронировать место")
+        print("6. Отменить бронь")
+        print("7. Изменить мероприятие")
+        print("8. Удалить мероприятие")
+        print("9. Статистика")
+        print("10. Создать отчёт")
+        print("0. Выход")
+
+        choice = input("Выберите действие: ")
+
+        if choice == "1":
+            show_events(data["events"])
+
+        elif choice == "2":
+            title = input("Название: ")
+            category = input("Категория: ")
+            date = input("Дата ГГГГ-ММ-ДД: ")
+            price = read_number("Цена: ")
+            capacity = read_number("Количество мест: ")
+
+            if price is not None and capacity is not None and capacity > 0:
+                add_event(data, title, category, date, price, capacity)
+                save_db(data)
+                print("Мероприятие добавлено")
+            else:
+                print("Неверная цена или количество мест")
+
+        elif choice == "3":
+            category = input("Категория: ")
+            show_events(filter_by_category(data, category))
+
+        elif choice == "4":
+            show_events(sort_by_date(data))
+
+        elif choice == "5":
+            event_id = read_number("ID мероприятия: ")
+            participant = input("Имя участника: ")
+
+            if event_id is not None:
+                success, message = book_ticket(
+                    data, event_id, participant
+                )
+                print(message)
+
+                if success:
+                    save_db(data)
+
+        elif choice == "6":
+            event_id = read_number("ID мероприятия: ")
+            participant = input("Имя участника: ")
+
+            if event_id is not None and cancel_ticket(
+                data, event_id, participant
+            ):
+                save_db(data)
+                print("Бронь отменена")
+            else:
+                print("Бронь не найдена")
+
+        elif choice == "7":
+            event_id = read_number("ID мероприятия: ")
+
+            if event_id is not None:
+                new_title = input("Новое название: ")
+                new_date = input("Новая дата ГГГГ-ММ-ДД: ")
+                new_price = read_number("Новая цена: ")
+
+                if new_price is not None and edit_event(
+                    data, event_id, new_title, new_date, new_price
+                ):
+                    save_db(data)
+                    print("Мероприятие изменено")
+                else:
+                    print("Не удалось изменить мероприятие")
+
+        elif choice == "8":
+            event_id = read_number("ID мероприятия: ")
+
+            if event_id is not None and delete_event(data, event_id):
+                save_db(data)
+                print("Мероприятие удалено")
+            else:
+                print("Мероприятие не найдено")
+
+        elif choice == "9":
+            statistics = get_statistics(data)
+            print(statistics)
+
+        elif choice == "10":
+            export_report(data)
+            print("Отчёт создан")
+
+        elif choice == "0":
+            print("До встречи!")
+            break
+
+        else:
+            print("Такого пункта нет")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+
